@@ -1,4 +1,4 @@
-##
+# llmaochain (LLM action orchestration chain)
 
 Break complex tasks up into small pieces that are easier for LLMs to handle into a chain. Link them with non-ai functions to augment, parse, or validate responses. Function calling supported.
 
@@ -6,28 +6,41 @@ Break complex tasks up into small pieces that are easier for LLMs to handle into
 - Automatic retries
 - Fully configurable, at both chain and link level
 
+Currently only works with Open AI. May support other models in the future.
+
 ## Install
+
+Set `OPENAI_API_KEY` in your environment variables.
 
 `npm install llmaochain`
 
-## Example
-
-Start by defining your links. Each link is either a ModelLink or a FunctionLink. ModelLinks are configuration objects that define how to call a model. FunctionLinks are just regular functions.
-
-Templates are a way to build prompts for your model. You can use the results of previous links in your templates with the {{variable}} notation.
+## Usage
 
 ```
-// Define links
-const getRandomletter: FunctionLink = () => {
-  const letters = "abcdefghijklmnopqrstuvwxyz";
-  const randomLetter = letters[Math.floor(Math.random() * letters.length)];
-  return randomLetter;
-};
+import { FunctionLink, ModelLink, executeChain } from "llmaochain";
+```
 
+llmaochain works by defining a chain of links. Each link is either a ModelLink or a FunctionLink. ModelLinks are configuration objects that define the request made to the LLM. FunctionLinks are just regular functions. llmaochain makes it easy to pass results from previous links into prompts for later links.
+
+```
+  const result = await executeChain([
+    getRandomletter, // Function Link
+    getRandomName, // Model Link
+    getGender, // Model Link (function calling)
+    addKunOrChanToName, // Function Link
+  ]);
+```
+
+Here's how to define a ModelLink. ModelLink is an extension of Open AI's CreateChatCompletionRequest, so you can pass in any of the properties defined in the Open AI docs.
+
+The additional properties are:
+
+- name: the name of the link
+- template: an array of TemplateBlocks that are used to build the prompt. You can use the results of previous links in your templates with the {{variable}} notation.
+
+```
 const getRandomName: ModelLink = {
   name: "getRandomName",
-  model: "gpt-3.5-turbo-0613",
-  temperature: 0.9,
   template: [
     {
       content: `Come up with one first name that start with the letter {{getRandomletter}}`,
@@ -35,55 +48,92 @@ const getRandomName: ModelLink = {
     },
   ],
 };
+```
 
-const getGender: ModelLink = {
-  name: "getGender",
-  retries: 2,
-  model: "gpt-3.5-turbo-0613",
-  temperature: 0.9,
-  template: [
-    {
-      content: `What is the gender of {{getRandomName}}`,
-      include: true,
-    },
-  ],
-  functions: [
-    {
+## Full Example
+
+```
+    // Define links
+    const getRandomletter: FunctionLink = () => {
+      const letters = "abcdefghijklmnopqrstuvwxyz";
+      const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+      return randomLetter;
+    };
+
+    const getRandomName: ModelLink = {
+      name: "getRandomName",
+      model: "gpt-3.5-turbo-0613",
+      temperature: 0.9,
+      template: [
+        {
+          content: `Come up with one first name that start with the letter {{getRandomletter}}`,
+          include: true,
+        },
+      ],
+    };
+
+    const getGender: ModelLink = {
       name: "getGender",
-      description: "Gets the gender of a name",
-      parameters: {
-        type: "object",
-        properties: {
-          gender: {
-            type: "string",
-            description: "Either boy or girl",
-            enum: ["boy", "girl"],
-          },
-          name: {
-            type: "string",
-            description: "The name",
+      retries: 2,
+      model: "gpt-3.5-turbo-0613",
+      temperature: 0,
+      template: [
+        {
+          content: `What is the gender of {{getRandomName}}`,
+          include: true,
+        },
+      ],
+      functions: [
+        {
+          name: "getGender",
+          description: "Gets the gender of a name",
+          parameters: {
+            type: "object",
+            properties: {
+              gender: {
+                type: "string",
+                description: "Either boy or girl",
+                enum: ["boy", "girl"],
+              },
+              name: {
+                type: "string",
+                description: "The name",
+              },
+            },
           },
         },
+      ],
+      function_call: {
+        name: "getGender",
       },
-    },
-  ],
-  function_call: "auto",
-};
-```
+    };
 
-Then, execute the chain. The chain will execute each link in order, passing the results of previous links to the next link. The chain will return the results of the last link.
+    const addKunOrChanToName = ({
+      gender,
+      name,
+    }: {
+      gender: "boy" | "girl";
+      name: string;
+    }) => {
+      if (gender === "boy") {
+        return `${name}-kun`;
+      } else {
+        return `${name}-chan`;
+      }
+    };
 
-```
-// Execute the chain
-async function example() {
-  const result = await executeChain([
-    getRandomletter, // Function Link
-    getRandomName, // Model Link
-    getGender, // Model Link (function calling)
-    addKunOrChanToName, // Function Link
-  ]);
-  return result;
-}
+    // Execute the chain
+    const example = async () => {
+      const result = await executeChain([
+        getRandomletter, // Function Link
+        getRandomName, // Model Link
+        getGender, // Model Link (function calling)
+        addKunOrChanToName, // Function Link
+      ]);
+      console.log(result);
+      return result;
+    };
+    example()
 ```
 
 ## Output

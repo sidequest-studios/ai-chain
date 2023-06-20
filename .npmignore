@@ -4,3 +4,5 @@ node_modules/
 !*.d.ts
 src/
 examples
+.env
+.DS_Store

@@ -1,6 +1,6 @@
 {
   "name": "llmaochain",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Chain requests to OpenAI models and regular functions together super easily. Function calling supported!",
   "main": "dist/index.js",
   "scripts": {
