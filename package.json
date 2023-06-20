@@ -1,5 +1,5 @@
 {
-  "name": "funchain",
+  "name": "llmaochain",
   "version": "1.0.0",
   "description": "Chain requests to OpenAI models and regular functions together super easily. Function calling supported!",
   "main": "dist/index.js",
@@ -9,7 +9,7 @@
   },
   "keywords": [
     "openai",
-    "funchain",
+    "llmaochain",
     "functional chain",
     "function calling"
   ],
