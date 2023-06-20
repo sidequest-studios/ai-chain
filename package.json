@@ -1,0 +1,26 @@
+{
+  "name": "funchain",
+  "version": "1.0.0",
+  "description": "Chain requests to OpenAI models and regular functions together super easily. Function calling supported!",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "openai",
+    "funchain",
+    "functional chain",
+    "function calling"
+  ],
+  "author": "Will Liu",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "openai": "^3.3.0",
+    "ts-node": "^10.9.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.1.3"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true
+  },
+  "exclude": ["node_modules"],
+  "include": ["./src/index.ts"]
+}
