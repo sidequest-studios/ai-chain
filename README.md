@@ -1,4 +1,4 @@
-# llmaochain (LLM action orchestration chain)
+# ai-chain
 
 Break complex tasks up into small pieces that are easier for LLMs to handle into a chain. Link them with non-ai functions to augment, parse, or validate responses. Function calling supported.
 
@@ -12,15 +12,15 @@ Currently only works with Open AI. May support other models in the future.
 
 Set `OPENAI_API_KEY` in your environment variables.
 
-`npm install llmaochain`
+`npm install ai-chain`
 
 ## Usage
 
 ```
-import { FunctionLink, ModelLink, executeChain } from "llmaochain";
+import { FunctionLink, ModelLink, executeChain } from "ai-chain";
 ```
 
-llmaochain works by defining a chain of links. Each link is either a ModelLink or a FunctionLink. ModelLinks are configuration objects that define the request made to the LLM. FunctionLinks are just regular functions. llmaochain makes it easy to pass results from previous links into prompts for later links.
+ai-chain works by defining a chain of links. Each link is either a ModelLink or a FunctionLink. ModelLinks are configuration objects that define the request made to the LLM. FunctionLinks are just regular functions. ai-chain makes it easy to pass results from previous links into prompts for later links.
 
 ```
   const result = await executeChain([
