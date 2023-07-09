@@ -1,4 +1,4 @@
-# ai-chain
+# ai-fun-chain
 
 Break complex tasks up into small pieces that are easier for LLMs to handle into a chain. Link them with non-ai functions to augment, parse, or validate responses. Function calling supported.
 
@@ -12,15 +12,15 @@ Currently only works with Open AI. May support other models in the future.
 
 Set `OPENAI_API_KEY` in your environment variables.
 
-`npm install ai-chain`
+`npm install ai-fun-chain`
 
 ## Usage
 
 ```
-import { FunctionLink, ModelLink, executeChain } from "ai-chain";
+import { FunctionLink, ModelLink, executeChain } from "ai-fun-chain";
 ```
 
-ai-chain works by defining a chain of links. Each link is either a ModelLink or a FunctionLink. ModelLinks are configuration objects that define the request made to the LLM. FunctionLinks are just regular functions. ai-chain makes it easy to pass results from previous links into prompts for later links.
+ai-fun-chain works by defining a chain of links. Each link is either a ModelLink or a FunctionLink. ModelLinks are configuration objects that define the request made to the LLM. FunctionLinks are just regular functions. ai-fun-chain makes it easy to pass results from previous links into prompts for later links.
 
 ```
   const result = await executeChain([

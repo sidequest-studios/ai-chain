@@ -1,3 +1,5 @@
+// To test this, install ts-node and run `OPENAI_API_KEY=yourkeyhere ts-node examples/first-example.ts`
+
 import { FunctionLink, ModelLink, executeChain } from "../src";
 
 // Define links
@@ -11,10 +13,10 @@ const getRandomName: ModelLink = {
   name: "getRandomName",
   model: "gpt-3.5-turbo-0613",
   temperature: 0.9,
-  template: [
+  messagesTemplate: [
     {
+      role: "user",
       content: `Come up with one first name that start with the letter {{getRandomletter}}`,
-      include: true,
     },
   ],
 };
@@ -24,10 +26,10 @@ const getGender: ModelLink = {
   retries: 2,
   model: "gpt-3.5-turbo-0613",
   temperature: 0.9,
-  template: [
+  messagesTemplate: [
     {
+      role: "user",
       content: `What is the gender of {{getRandomName}}`,
-      include: true,
     },
   ],
   functions: [

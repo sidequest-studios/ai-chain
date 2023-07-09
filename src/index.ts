@@ -10,12 +10,12 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
-export interface TemplateBlock {
-  content: Function | string; // A string, or a function that returns
-  include: boolean;
+export interface MessageTemplate {
+  content: string; // A string, or a function that returns
+  role?: "user" | "system";
 }
 
-export type Template = TemplateBlock[];
+export type MessagesTemplate = MessageTemplate[];
 
 export type FunctionLink = Function;
 
@@ -30,17 +30,20 @@ export type LinkResults = Record<string, string | object>;
 export type ModelLink = Partial<CreateChatCompletionRequest> & {
   name: string;
   retries?: number;
-  template?: Template;
+  messagesTemplate?: MessagesTemplate;
   linkResults?: LinkResults;
 };
 
 export type Link = FunctionLink | ModelLink;
 
-export function templateFill(template: string, linkResults?: any) {
+export function fillContentTemplate(
+  contentTemplate: string,
+  linkResults?: any
+) {
   if (!linkResults) {
-    return template;
+    return contentTemplate;
   }
-  const replacedResult = template.replace(
+  const replacedResult = contentTemplate.replace(
     /\{\{([\w\.]+)\}\}/g,
     function (m, key) {
       let parts = key.split(".");
@@ -58,26 +61,6 @@ export function templateFill(template: string, linkResults?: any) {
   return replacedResult;
 }
 
-export const generatePrompt = (
-  template: Template,
-  autoNewLine: boolean,
-  functionName?: string,
-  linkResults?: LinkResults
-) => {
-  let result = template
-    .filter((block) => block.include)
-    .map((block) => {
-      if (typeof block.content === "string") {
-        return block.content;
-      } else {
-        return block.content();
-      }
-    })
-    .join(autoNewLine ? "\n" : "");
-  result = templateFill(result, linkResults);
-  return result;
-};
-
 export async function getLinkResultOpenAi({
   name,
   retries = 3,
@@ -87,20 +70,20 @@ export async function getLinkResultOpenAi({
   functions,
   function_call,
   top_p = 1,
-  template,
+  messagesTemplate,
   linkResults,
 }: ModelLink): Promise<CreateChatCompletionResponse> {
   let errorToThrow = null;
   while (retries > 0) {
     try {
       // If a template is passed in, replace messages with the generated prompt
-      if (template) {
-        messages = [
-          {
-            role: "user",
-            content: generatePrompt(template, true, name, linkResults),
-          },
-        ];
+      if (messagesTemplate) {
+        messages = messagesTemplate.map((messageTemplate) => {
+          return {
+            role: messageTemplate.role || "user",
+            content: fillContentTemplate(messageTemplate.content, linkResults),
+          };
+        });
       }
       if (!messages) {
         throw new Error("No messages or template provided");
