@@ -32,6 +32,11 @@ export type ModelLink = Partial<CreateChatCompletionRequest> & {
   retries?: number;
   messagesTemplate?: MessagesTemplate;
   linkResults?: LinkResults;
+  temperature?: number;
+  top_p?: number;
+  frequency_penalty?: number;
+  presence_penalty?: number;
+  model?: string;
 };
 
 export type Link = FunctionLink | ModelLink;
