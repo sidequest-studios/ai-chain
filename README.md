@@ -31,28 +31,43 @@ ai-fun-chain works by defining a chain of links. Each link is either a ModelLink
   ]);
 ```
 
-Here's how to define a ModelLink. ModelLink is an extension of Open AI's CreateChatCompletionRequest, so you can pass in any of the properties defined in the Open AI docs.
+### Defining a Model Link
 
-The additional properties are:
+ModelLink is an extension of Open AI's CreateChatCompletionRequest, so you can pass in any of the properties defined in the Open AI docs.
 
-- name: the name of the link
-- template: an array of TemplateBlocks that are used to build the prompt. You can use the results of previous links in your templates with the {{variable}} notation.
+You can pass in a normal `messages` property, or you can use `templates`. `templates` is an array of `MessageTemplate`. A `MessageTemplate` is similar to the normal message you would pass to Open AI, but instead of `content` it has `contentBlocks`.
+
+`contentBlocks` are useful for programtically including blocks of text in the prompt. Each content block is composed of a `template` and an `include` property. If `include` is true, the template will be included in the prompt. If `include` is false, the template will not be included in the prompt. This is useful for conditionally including text in the prompt based on the result of a previous link.
+
+The modelLink also has extra parameters to control cleanup functions. `autoNewLineContent` defaults to true. If set to false, it will use a space. You do not need to add leading/trailing spaces between contentBlocks. `removeDoubleSpaces` defaults to true. If set to true, it will remove double spaces.
 
 ```
+
+const nameShouldBeFourLetters = true;
+
 const getRandomName: ModelLink = {
-  name: "getRandomName",
-  template: [
-    {
-      content: `Come up with one first name that start with the letter {{getRandomletter}}`,
-      include: true,
-    },
-  ],
+name: "getRandomName",
+temparature: 0,
+autoNewLineContent: false, // defaults to true. If set to false, it will use a space. You do not need to add leading/trailing spaces between contentBlocks.
+removeDoubleSpaces: true, // defaults to true.
+contentBlocks: [
+{
+template: `Come up with one first name that start with the letter {{getRandomletter}}`,
+include: true,
+},
+{
+template: `The name should be four letters long`,
+include: nameShouldBeFourLetters,
+},
+],
 };
+
 ```
 
 ## Full Example
 
 ```
+
     // Define links
     const getRandomletter: FunctionLink = () => {
       const letters = "abcdefghijklmnopqrstuvwxyz";
@@ -134,6 +149,7 @@ const getRandomName: ModelLink = {
       return result;
     };
     example()
+
 ```
 
 ## Output
@@ -141,36 +157,38 @@ const getRandomName: ModelLink = {
 `executeChain` outputs the following object, so you can easily access the final result and aggregated usage across each link, as well as the results of each link.
 
 ```
+
 {
-  finalResult: 'Ivan-chan',
-  totalTokens: 108,
-  totalPromptTokens: 90,
-  totalCompletionTokens: 18,
-  chatCompletionResponses: {
-    getRandomName: {
-      id: 'chatcmpl-7TNbk54yIUba6wvtPoT0z5HTNSbMC',
-      object: 'chat.completion',
-      created: 1687236616,
-      model: 'gpt-3.5-turbo-0613',
-      choices: [Array],
-      usage: [Object]
-    },
-    getGender: {
-      id: 'chatcmpl-7TNbkKZ9n5wmprfpXQL8YNW35CDv0',
-      object: 'chat.completion',
-      created: 1687236616,
-      model: 'gpt-3.5-turbo-0613',
-      choices: [Array],
-      usage: [Object]
-    }
-  },
-  linkResults: {
-    getRandomletter: 'i',
-    getRandomName: 'Ivan',
-    getGender: { name: 'Ivan' },
-    addKunOrChanToName: 'Ivan-chan'
-  }
+finalResult: 'Ivan-chan',
+totalTokens: 108,
+totalPromptTokens: 90,
+totalCompletionTokens: 18,
+chatCompletionResponses: {
+getRandomName: {
+id: 'chatcmpl-7TNbk54yIUba6wvtPoT0z5HTNSbMC',
+object: 'chat.completion',
+created: 1687236616,
+model: 'gpt-3.5-turbo-0613',
+choices: [Array],
+usage: [Object]
+},
+getGender: {
+id: 'chatcmpl-7TNbkKZ9n5wmprfpXQL8YNW35CDv0',
+object: 'chat.completion',
+created: 1687236616,
+model: 'gpt-3.5-turbo-0613',
+choices: [Array],
+usage: [Object]
 }
+},
+linkResults: {
+getRandomletter: 'i',
+getRandomName: 'Ivan',
+getGender: { name: 'Ivan' },
+addKunOrChanToName: 'Ivan-chan'
+}
+}
+
 ```
 
 ## Pass results from previous links to a template in a later link
@@ -178,24 +196,30 @@ const getRandomName: ModelLink = {
 For prompt templates, you can just refer to the name of the previous link in the template. For example, if you want to use the result of the getRandomName link in the template for the getGender link, you can just use the name of the link in the template.
 
 ```
+
 {{getRandomName}}
+
 ```
 
 If one of your model links outputs JSON through function calling, you can reference a specific value with dot notation
 
 ```
+
 {{getGender.gender}}
+
 ```
 
 If you are passing the result of a function call directly into a Function Link, you simply define the arguments in that function to match the expected result of the previous link
 
 ```
+
 const addKunOrChanToName = ({ gender, name }: {
-  gender: "boy" | "girl";
-  name: string;
+gender: "boy" | "girl";
+name: string;
 }) => {
-  ...
+...
 }
+
 ```
 
 ## Retries
@@ -203,15 +227,21 @@ const addKunOrChanToName = ({ gender, name }: {
 You can pass retries in at each link, or you can pass in a global retry quantity in the executeChain config.
 
 ```
-  const result = await executeChain(
-    [
-      getRandomName, // ModelLink
-      determineKunOrChan, // FunctionLink
-      addKunOrChanToName, // FunctionLink
-      writeStoryAboutName, // ModelLink
-    ],
-    {
-      retries: 2,
-    }
-  );
+
+const result = await executeChain(
+[
+getRandomName, // ModelLink
+determineKunOrChan, // FunctionLink
+addKunOrChanToName, // FunctionLink
+writeStoryAboutName, // ModelLink
+],
+{
+retries: 2,
+}
+);
+
+```
+
+```
+
 ```

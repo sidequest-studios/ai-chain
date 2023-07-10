@@ -1,4 +1,5 @@
 import {
+  ChatCompletionRequestMessage,
   Configuration,
   CreateChatCompletionRequest,
   CreateChatCompletionResponse,
@@ -10,12 +11,21 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
+export interface ContentBlock {
+  template: string;
+  include?: boolean;
+}
+
+export type ContentBlocks = ContentBlock[];
+
+export type ContentTemplate = string | ContentBlocks;
+
 export interface MessageTemplate {
-  content: string; // A string, or a function that returns
+  contentBlocks: ContentTemplate;
   role?: "user" | "system";
 }
 
-export type MessagesTemplate = MessageTemplate[];
+export type Templates = MessageTemplate[];
 
 export type FunctionLink = Function;
 
@@ -23,6 +33,7 @@ export interface LinkResult {
   name: string;
   result: string;
   chatCompletionResponse?: CreateChatCompletionResponse;
+  messages: ChatCompletionRequestMessage[];
 }
 
 export type LinkResults = Record<string, string | object>;
@@ -30,13 +41,10 @@ export type LinkResults = Record<string, string | object>;
 export type ModelLink = Partial<CreateChatCompletionRequest> & {
   name: string;
   retries?: number;
-  messagesTemplate?: MessagesTemplate;
+  templates?: Templates;
   linkResults?: LinkResults;
-  temperature?: number;
-  top_p?: number;
-  frequency_penalty?: number;
-  presence_penalty?: number;
-  model?: string;
+  autoNewLineContent?: boolean; // defaults to true
+  removeDoubleSpaces?: boolean; // defaults to true
 };
 
 export type Link = FunctionLink | ModelLink;
@@ -66,6 +74,36 @@ export function fillContentTemplate(
   return replacedResult;
 }
 
+export function buildContent({
+  content,
+  linkResults,
+  autoNewLineContent = true,
+  removeDoubleSpaces = true,
+}: {
+  content: ContentTemplate;
+  linkResults?: LinkResults;
+  autoNewLineContent?: boolean;
+  removeDoubleSpaces?: boolean;
+}) {
+  if (typeof content === "string") {
+    return fillContentTemplate(content, linkResults);
+  }
+  // If content is not
+  let contentBlocks = content;
+  const filledBlocks = contentBlocks
+    .filter((block) => block.include !== false)
+    .map((contentBlock) => {
+      return fillContentTemplate(contentBlock.template, linkResults);
+    });
+  let result = autoNewLineContent
+    ? filledBlocks.join("\n")
+    : filledBlocks.join(" ");
+  if (removeDoubleSpaces) {
+    result = result.replace(/\s\s+/g, " ");
+  }
+  return result;
+}
+
 export async function getLinkResultOpenAi({
   name,
   retries = 3,
@@ -75,21 +113,32 @@ export async function getLinkResultOpenAi({
   functions,
   function_call,
   top_p = 1,
-  messagesTemplate,
+  templates,
   linkResults,
-}: ModelLink): Promise<CreateChatCompletionResponse> {
+  autoNewLineContent,
+  removeDoubleSpaces,
+}: ModelLink): Promise<{
+  result: CreateChatCompletionResponse;
+  messages: ChatCompletionRequestMessage[];
+}> {
   let errorToThrow = null;
   while (retries > 0) {
     try {
       // If a template is passed in, replace messages with the generated prompt
-      if (messagesTemplate) {
-        messages = messagesTemplate.map((messageTemplate) => {
+      if (templates) {
+        messages = templates.map((messageTemplate) => {
           return {
             role: messageTemplate.role || "user",
-            content: fillContentTemplate(messageTemplate.content, linkResults),
+            content: buildContent({
+              content: messageTemplate.contentBlocks,
+              linkResults,
+              autoNewLineContent,
+              removeDoubleSpaces,
+            }),
           };
         });
       }
+
       if (!messages) {
         throw new Error("No messages or template provided");
       }
@@ -102,7 +151,7 @@ export async function getLinkResultOpenAi({
         function_call,
       });
 
-      return chatCompletion.data;
+      return { result: chatCompletion.data, messages: messages };
     } catch (error: any) {
       retries--;
       if (retries === 0) {
@@ -131,7 +180,7 @@ export const executeLink = async (
 ): Promise<LinkResult> => {
   let result: string;
   let chatCompletionResponse: CreateChatCompletionResponse | undefined;
-
+  let messages;
   if (link instanceof Function) {
     // If the previous link was a function call (the result is an object, pass the object as arguments)
     if (typeof linkResults[chain[index - 1]?.name] === "object" && index > 0) {
@@ -142,11 +191,13 @@ export const executeLink = async (
       result = await link({ ...linkResults });
     }
   } else {
-    chatCompletionResponse = await getLinkResultOpenAi({
-      ...link,
-      linkResults,
-      retries,
-    });
+    const { result: chatCompletionResponse, messages: sentMessages } =
+      await getLinkResultOpenAi({
+        ...link,
+        linkResults,
+        retries,
+      });
+    messages = sentMessages;
     // If function call
     if (chatCompletionResponse.choices[0].message.function_call) {
       result = JSON.parse(
@@ -166,6 +217,7 @@ export const executeLink = async (
     name: link.name,
     result,
     chatCompletionResponse,
+    messages,
   };
 };
 
@@ -176,6 +228,7 @@ export interface ExecuteChainResult {
   totalCompletionTokens: number;
   chatCompletionResponses: Record<string, CreateChatCompletionResponse>;
   linkResults: LinkResults;
+  linkMessages: Record<string, ChatCompletionRequestMessage[]>;
 }
 
 export interface ExecuteChainConfig {
@@ -187,18 +240,15 @@ export async function executeChain(
   config?: ExecuteChainConfig
 ): Promise<ExecuteChainResult> {
   const linkResults: LinkResults = {};
+  const linkMessages: Record<string, ChatCompletionRequestMessage[]> = {};
   const chatCompletionResponses: Record<string, CreateChatCompletionResponse> =
     {};
 
   for (let i = 0; i < chain.length; i++) {
-    const { name, result, chatCompletionResponse } = await executeLink(
-      chain[i],
-      linkResults,
-      config?.retries,
-      chain,
-      i
-    );
+    const { name, result, chatCompletionResponse, messages } =
+      await executeLink(chain[i], linkResults, config?.retries, chain, i);
     linkResults[name] = result;
+    linkMessages[name] = messages;
     if (chatCompletionResponse) {
       chatCompletionResponses[name] = chatCompletionResponse;
     }
@@ -223,5 +273,6 @@ export async function executeChain(
     totalCompletionTokens,
     chatCompletionResponses,
     linkResults,
+    linkMessages,
   };
 }

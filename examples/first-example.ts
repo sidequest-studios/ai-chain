@@ -13,10 +13,23 @@ const getRandomName: ModelLink = {
   name: "getRandomName",
   model: "gpt-3.5-turbo-0613",
   temperature: 0.9,
-  messagesTemplate: [
+  templates: [
     {
       role: "user",
-      content: `Come up with one first name that start with the letter {{getRandomletter}}`,
+      contentBlocks: [
+        {
+          template: `Come up with one first name`,
+          include: true,
+        },
+        {
+          template: `that start with the letter {{getRandomletter}}`,
+          include: true,
+        },
+        {
+          template: `It should be a really really long name`,
+          include: false,
+        },
+      ],
     },
   ],
 };
@@ -26,10 +39,10 @@ const getGender: ModelLink = {
   retries: 2,
   model: "gpt-3.5-turbo-0613",
   temperature: 0.9,
-  messagesTemplate: [
+  templates: [
     {
       role: "user",
-      content: `What is the gender of {{getRandomName}}`,
+      contentBlocks: `What is the gender of {{getRandomName}}`,
     },
   ],
   functions: [
@@ -71,12 +84,17 @@ const addKunOrChanToName = ({
 
 // Execute the chain
 async function example() {
-  const result = await executeChain([
-    getRandomletter, // Function Link
-    getRandomName, // Model Link
-    getGender, // Model Link (function calling)
-    addKunOrChanToName, // Function Link
-  ]);
+  const result = await executeChain(
+    [
+      getRandomletter, // Function Link
+      getRandomName, // Model Link
+      getGender, // Model Link (function calling)
+      addKunOrChanToName, // Function Link
+    ],
+    {
+      retries: 3,
+    }
+  );
   console.log(result);
   return result;
 }

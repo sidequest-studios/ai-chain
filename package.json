@@ -1,6 +1,6 @@
 {
   "name": "ai-fun-chain",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "description": "Chain requests to OpenAI models and regular functions together super easily. Function calling supported!",
   "main": "dist/index.js",
   "scripts": {
